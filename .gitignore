@@ -1,0 +1,45 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+/decoder_flac/build/
+/player-core/build/
+/storage-core/build/
+/docs/
+/native-dsp-thirdparty/
+/.kotlin/
+/common/build/
+/.claude/
+/.idea/
+/.idea/shelf/
+/doc/
+# 实验副本独立签名；原版 key.jks 同样绝不入库
+*.jks
+*.keystore
+
+# 所有模块的 Gradle 构建产物与缓存（含 159MB 的 debug APK）
+**/build/
+*.apk
+*.aab
+.cxx/
+.externalNativeBuild/
+.kotlin/
+.gradle/
+/.idea/
+
+# 本机 SDK 路径与签名口令
+/local.properties
+
+# AI 助手的本地工作记录，不随源码发布
+/.workbuddy/

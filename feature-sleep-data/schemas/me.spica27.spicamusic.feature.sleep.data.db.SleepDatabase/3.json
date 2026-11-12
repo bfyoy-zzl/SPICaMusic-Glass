@@ -1,0 +1,173 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "eddd01ef09568464eafc64247ed315e4",
+    "entities": [
+      {
+        "tableName": "SleepScene",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`sceneId` INTEGER PRIMARY KEY AUTOINCREMENT, `sceneKey` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `sortOrder` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "sceneId",
+            "columnName": "sceneId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sceneKey",
+            "columnName": "sceneKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "sceneId"
+          ]
+        }
+      },
+      {
+        "tableName": "SleepStem",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`stemId` INTEGER PRIMARY KEY AUTOINCREMENT, `sceneId` INTEGER NOT NULL, `name` TEXT NOT NULL, `kind` TEXT NOT NULL, `layer` TEXT NOT NULL, `assetPath` TEXT NOT NULL, `clipPaths` TEXT NOT NULL, `intervalMs` INTEGER NOT NULL, `calibratedGain` REAL NOT NULL, `sortOrder` INTEGER NOT NULL, FOREIGN KEY(`sceneId`) REFERENCES `SleepScene`(`sceneId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "stemId",
+            "columnName": "stemId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sceneId",
+            "columnName": "sceneId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "layer",
+            "columnName": "layer",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "assetPath",
+            "columnName": "assetPath",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clipPaths",
+            "columnName": "clipPaths",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "intervalMs",
+            "columnName": "intervalMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calibratedGain",
+            "columnName": "calibratedGain",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "stemId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_SleepStem_sceneId",
+            "unique": false,
+            "columnNames": [
+              "sceneId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_SleepStem_sceneId` ON `${TABLE_NAME}` (`sceneId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "SleepScene",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sceneId"
+            ],
+            "referencedColumns": [
+              "sceneId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "SleepPref",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`prefKey` TEXT NOT NULL, `prefValue` TEXT NOT NULL, PRIMARY KEY(`prefKey`))",
+        "fields": [
+          {
+            "fieldPath": "prefKey",
+            "columnName": "prefKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "prefValue",
+            "columnName": "prefValue",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "prefKey"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'eddd01ef09568464eafc64247ed315e4')"
+    ]
+  }
+}

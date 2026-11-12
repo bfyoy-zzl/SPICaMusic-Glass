@@ -1,0 +1,63 @@
+plugins {
+  alias(libs.plugins.android.library)
+  id 'com.google.devtools.ksp'
+}
+
+android {
+  namespace = 'me.spica27.spicamusic.feature.sleep.data'
+  compileSdk = 37
+
+  defaultConfig {
+    minSdk = 29
+    targetSdk = 36
+
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    consumerProguardFiles "consumer-rules.pro"
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled = false
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+  }
+
+  sourceSets {
+    androidTest.assets.srcDirs += files("$projectDir/schemas")
+  }
+}
+
+ksp {
+  arg("room.schemaLocation", "$projectDir/schemas")
+  arg("room.generateKotlin", "true")
+}
+
+dependencies {
+  implementation project(':common')
+  implementation project(':feature-sleep-domain')
+
+  implementation libs.androidx.core.ktx
+  implementation libs.androidx.lifecycle.runtime.ktx
+
+  // Room：助眠场景与音轨独立存放，不动主曲库库的迁移链
+  api libs.androidx.room.runtime
+  ksp libs.androidx.room.compiler
+
+  // Media3：每条音轨一个 ExoPlayer 实例
+  api libs.androidx.media3.exoplayer
+  api libs.androidx.media3.common
+
+  implementation libs.kotlinx.coroutines.guava
+
+  api libs.koin.androidx.compose
+  implementation libs.timber
+
+  testImplementation libs.junit
+  androidTestImplementation libs.androidx.junit
+  androidTestImplementation libs.androidx.espresso.core
+}

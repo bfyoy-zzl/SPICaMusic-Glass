@@ -1,0 +1,52 @@
+package me.spcia.lyric_core
+
+import android.content.Context
+import com.skydoves.sandwich.getOrNull
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import me.spcia.lyric_core.entity.SongLyrics
+import retrofit2.Retrofit
+import timber.log.Timber
+
+/**
+ * 歌词API客户端
+ * 通过新的歌词API获取歌曲信息和歌词
+ */
+class ApiClient(
+    private val context: Context,
+    retrofit: Retrofit
+) {
+
+    private val api: LyricsApi by lazy {
+        retrofit.create(LyricsApi::class.java)
+    }
+
+    /**
+     * 搜索歌词并返回所有匹配结果
+     * @param displayName 歌曲标题
+     * @param artist 歌手，缺失时仅按标题搜索
+     * @return 所有匹配的歌词结果列表，失败时返回空列表
+     */
+    suspend fun searchAllLyrics(displayName: String, artist: String = ""): List<SongLyrics> = withContext(Dispatchers.IO) {
+        // 未配置在线歌词后端时直接返回空结果：不发请求、不打日志、不触发超时重试。
+        if (!LyricsBackend.isEnabled) return@withContext emptyList()
+
+        Timber.tag("ApiClient").d("搜索所有歌词: $displayName - $artist")
+
+        try {
+            val response = api.searchLyrics(displayName, artist).getOrNull()
+
+            if (response == null || response.code != 200) {
+                Timber.tag("ApiClient").w("API请求失败: ${response?.message}")
+                return@withContext emptyList()
+            }
+
+            val results = response.data ?: emptyList()
+            Timber.tag("ApiClient").d("找到 ${results.size} 个歌词结果")
+            return@withContext results
+        } catch (e: Exception) {
+            Timber.tag("ApiClient").e(e, "搜索歌词失败")
+            return@withContext emptyList()
+        }
+    }
+}

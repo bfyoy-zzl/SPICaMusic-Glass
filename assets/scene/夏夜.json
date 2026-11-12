@@ -1,0 +1,71 @@
+[
+  {
+    "audioName": "风吹树叶4",
+    "duration": 0,
+    "isLineAudio": true,
+    "isPointAudio": false,
+    "isRawRes": true,
+    "startPlayTime": 0,
+    "totalEndTime": 0,
+    "frequency": 0,
+    "names":[],
+    "volume": 0.6,
+    "pitch": 0.0,
+    "speed": 0.0
+  },
+  {
+    "audioName": "窗外的风",
+    "duration": 0,
+    "isLineAudio": true,
+    "isPointAudio": false,
+    "isRawRes": true,
+    "startPlayTime": 0,
+    "totalEndTime": 0,
+    "frequency": 0,
+    "names":[],
+    "volume": 0.6,
+    "pitch": 0.0,
+    "speed": 0.0
+  },
+  {
+    "audioName": "细雨虫鸣",
+    "duration": 0,
+    "isLineAudio": true,
+    "isPointAudio": false,
+    "isRawRes": true,
+    "startPlayTime": 0,
+    "totalEndTime": 0,
+    "frequency": 0,
+    "names":[],
+    "volume": 0.6,
+    "pitch": 0.0,
+    "speed": 0.0
+  },
+  {
+    "audioName": "河流",
+    "duration": 0,
+    "isLineAudio": true,
+    "isPointAudio": false,
+    "isRawRes": true,
+    "startPlayTime": 0,
+    "totalEndTime": 0,
+    "frequency": 0,
+    "names":[],
+    "volume": 0.6,
+    "pitch": 0.0,
+    "speed": 0.0
+  },
+  {
+    "duration": 3000,
+    "frequency": 15,
+    "isLineAudio": false,
+    "isPointAudio": true,
+    "isRawRes": true,
+    "names": ["青蛙1", "青蛙2", "青蛙3"],
+    "startPlayTime": 0,
+    "totalEndTime": 120059,
+    "pitch": 0.0,
+    "speed": 0.0,
+    "volume": 0.8
+  }
+]

@@ -1,0 +1,407 @@
+package me.spica27.spicamusic.ui.widget
+
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.MusicOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.skydoves.landscapist.components.rememberImageComponent
+import com.skydoves.landscapist.crossfade.CrossfadePlugin
+import com.skydoves.landscapist.image.LandscapistImage
+import me.spica27.spicamusic.R
+import me.spica27.spicamusic.common.entity.LyricSource
+import me.spica27.spicamusic.common.entity.LyricSourceType
+import me.spica27.spicamusic.ui.component.DialogContainer
+import me.spica27.spicamusic.ui.glass.CircularProgressIndicator
+import me.spica27.spicamusic.ui.navigation.LocalBackStack
+import me.spica27.spicamusic.ui.player.LyricsViewModel
+import org.koin.compose.viewmodel.koinActivityViewModel
+
+/**
+ * 歌词来源弹窗：顶部固定“无匹配歌词”，下方按来源分区。
+ * 与播放页共享 [LyricsViewModel]，选择来源或导入文件后关闭。
+ */
+@Composable
+fun LyricsSourceDialogContent() {
+    val backStack = LocalBackStack.current
+    val viewModel: LyricsViewModel = koinActivityViewModel()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val onlineSources =
+        remember(uiState.cachedOnlineSource, uiState.onlineSources) {
+            (listOfNotNull(uiState.cachedOnlineSource) + uiState.onlineSources)
+                .groupBy { it.rawLyrics }
+                .values
+                .map { sources ->
+                    val source = sources.first()
+                    val albumArt = sources.firstOrNull { it.albumArt.isNotBlank() }?.albumArt
+                    // 仅补上相同歌词候选的封面，保持原候选的标题、顺序和标识。
+                    if (source.albumArt.isBlank() && albumArt != null) source.copy(albumArt = albumArt) else source
+                }
+        }
+
+    LyricsSourceDialogContentInternal(
+        embedded = uiState.embeddedSource,
+        local = uiState.localSource,
+        online = onlineSources,
+        onlineLoading = uiState.onlineLoading,
+        onlineSearchAvailable = uiState.onlineSearchAvailable,
+        currentSourceType = uiState.currentSourceType,
+        currentRawText = uiState.displayedRawText,
+        lyricsSuppressed = uiState.lyricsSuppressed,
+        onSelectNoMatchingLyrics = {
+            viewModel.selectNoMatchingLyrics()
+            backStack.removeLastOrNull()
+        },
+        onSelect = { source ->
+            viewModel.selectSource(source)
+            backStack.removeLastOrNull()
+        },
+        onImportLocalFile = { uri -> viewModel.importLocalFile(uri) },
+        onDismiss = { backStack.removeLastOrNull() },
+    )
+}
+
+@Composable
+private fun LyricsSourceDialogContentInternal(
+    embedded: LyricSource.Embedded?,
+    local: LyricSource.LocalFile?,
+    online: List<LyricSource.Online>,
+    onlineLoading: Boolean,
+    onlineSearchAvailable: Boolean,
+    currentSourceType: LyricSourceType,
+    currentRawText: String?,
+    lyricsSuppressed: Boolean,
+    onSelectNoMatchingLyrics: () -> Unit,
+    onSelect: (LyricSource) -> Unit,
+    onImportLocalFile: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // 使用系统文件选择器，回传地址供读取和保存快照。
+    val picker =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .OpenDocument(),
+        ) { uri ->
+            if (uri != null) {
+                onImportLocalFile(uri.toString())
+                onDismiss()
+            }
+        }
+
+    DialogContainer {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .animateContentSize()
+                    .heightIn(min = 320.dp, max = 560.dp),
+        ) {
+            // 标题栏
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.choose_lyrics),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+
+            // 固定入口，不受候选加载状态影响。
+            SourceRow(
+                icon = Icons.Rounded.MusicOff,
+                title = stringResource(R.string.lyrics_no_match),
+                subtitle = stringResource(R.string.lyrics_no_match_subtitle),
+                selected = lyricsSuppressed,
+                onClick = onSelectNoMatchingLyrics,
+            )
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+                contentPadding =
+                    androidx.compose.foundation.layout
+                        .PaddingValues(bottom = 24.dp),
+            ) {
+                // ── 内嵌区 ──
+                item { SectionHeader(stringResource(R.string.lyrics_source_embedded)) }
+                if (embedded != null) {
+                    item {
+                        SourceRow(
+                            icon = Icons.Rounded.MusicNote,
+                            title = stringResource(R.string.lyrics_source_embedded),
+                            subtitle = stringResource(R.string.lyrics_source_embedded_subtitle),
+                            selected = !lyricsSuppressed && currentSourceType == LyricSourceType.EMBEDDED,
+                            onClick = {
+                                onSelect(embedded)
+                            },
+                        )
+                    }
+                } else {
+                    item { EmptyHint(stringResource(R.string.lyrics_source_none_embedded)) }
+                }
+
+                // ── 本地文件区 ──
+                item { SectionHeader(stringResource(R.string.lyrics_source_local)) }
+                if (local != null) {
+                    item {
+                        SourceRow(
+                            icon = Icons.Rounded.LibraryMusic,
+                            title = local.fileName,
+                            subtitle = stringResource(R.string.lyrics_source_local),
+                            selected = !lyricsSuppressed && currentSourceType == LyricSourceType.LOCAL_FILE,
+                            onClick = {
+                                onSelect(local)
+                            },
+                        )
+                    }
+                }
+                item {
+                    SourceRow(
+                        icon = Icons.Rounded.Add,
+                        title = stringResource(R.string.lyrics_source_local_pick),
+                        subtitle = null,
+                        selected = false,
+                        onClick = {
+                            // 歌词扩展名没有统一的 MIME，读取时仍需校验类型、大小和内容。
+                            picker.launch(
+                                arrayOf(
+                                    "text/plain",
+                                    "text/xml",
+                                    "application/xml",
+                                    "application/ttml+xml",
+                                    "application/octet-stream",
+                                ),
+                            )
+                        },
+                    )
+                }
+
+                // ── 在线区（未配置后端时整段不显示）──
+                if (onlineSearchAvailable) {
+                    item {
+                        SectionHeader(
+                            if (online.isEmpty()) {
+                                stringResource(R.string.lyrics_source_online)
+                            } else {
+                                stringResource(R.string.lyrics_source_online_count, online.size)
+                            },
+                        )
+                    }
+                    if (onlineLoading) {
+                        item {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 20.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(28.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
+                    if (online.isEmpty() && !onlineLoading) {
+                        item { EmptyHint(stringResource(R.string.lyrics_source_online_empty)) }
+                    } else {
+                        itemsIndexed(
+                            items = online,
+                            // 服务端标识可能重复，附加下标保证列表键唯一。
+                            key = { index, item -> "${item.stableKey}#$index" },
+                        ) { _, source ->
+                            SourceRow(
+                                icon = Icons.Rounded.Language,
+                                title = source.title,
+                                subtitle = source.subtitle,
+                                selected =
+                                    !lyricsSuppressed &&
+                                        currentSourceType == LyricSourceType.ONLINE &&
+                                        currentRawText == source.rawLyrics,
+                                albumArt = source.albumArt,
+                                onClick = {
+                                    onSelect(source)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier =
+            Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
+    )
+}
+
+@Composable
+private fun EmptyHint(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+    )
+}
+
+@Composable
+private fun SourceRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String?,
+    selected: Boolean,
+    albumArt: String? = null,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 2.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    if (selected) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    } else {
+                        Color.Transparent
+                    },
+                ).clickable(onClick = onClick)
+                .semantics { this.selected = selected },
+    ) {
+        if (!albumArt.isNullOrBlank()) {
+            LandscapistImage(
+                imageModel = { albumArt },
+                component =
+                    rememberImageComponent {
+                        +CrossfadePlugin(duration = 550)
+                    },
+                modifier =
+                    Modifier
+                        .matchParentSize()
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithCache {
+                            val fade =
+                                Brush.horizontalGradient(
+                                    0f to Color.Black.copy(alpha = 0.32f),
+                                    0.8f to Color.Transparent,
+                                )
+                            onDrawWithContent {
+                                drawContent()
+                                // 仅对封面应用透明蒙版，保留文字和选中状态。
+                                drawRect(brush = fade, blendMode = BlendMode.DstIn)
+                            }
+                        },
+            )
+        }
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.20f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            if (selected) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = stringResource(R.string.lyrics_source_current),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+    }
+}

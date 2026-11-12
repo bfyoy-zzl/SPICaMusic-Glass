@@ -1,0 +1,58 @@
+package me.spica27.spicamusic.player.api
+
+import kotlinx.coroutines.flow.StateFlow
+
+/**
+ * FFT 音频处理器接口
+ * 实时分析音频频谱数据
+ *
+ * 消费方式：收集 [bands] StateFlow（无监听器注册机制）。
+ * 采样开关由"应用前台且屏幕点亮"驱动：满足条件时 [enable]，否则 [disable] 以降低功耗。
+ * 熄屏后音频可能仍在播放，但没有任何可视化在绘制，采样只会白耗电。
+ */
+interface IFFTProcessor {
+    /**
+     * 31 个频段的响度值 (0.0 - 1.0)
+     * 频段: 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630,
+     *       800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000,
+     *       12500, 16000, 20000 Hz
+     */
+    val bands: StateFlow<FloatArray>
+
+    /**
+     * 当前频谱片段的代次；由音频输出层在 seek、切歌、单曲循环等 PCM 边界及暂停时递增。
+     * 绘制层发现变化后应丢弃旧分析目标，但保留已绘制状态以平滑过渡。
+     */
+    val generation: StateFlow<Long>
+
+    /**
+     * 是否启用 FFT 采样分析
+     */
+    val isEnabled: StateFlow<Boolean>
+
+    /**
+     * 启用 FFT 采样（应用在前台且屏幕点亮时调用）
+     */
+    fun enable()
+
+    /**
+     * 禁用 FFT 采样并清空频谱数据（应用退到后台或熄屏时调用）
+     */
+    fun disable()
+
+    companion object {
+        /**
+         * 31 个标准频段 (Hz)
+         */
+        val FREQUENCY_BANDS = floatArrayOf(
+            20f, 25f, 32f, 40f, 50f, 63f, 80f, 100f, 125f, 160f, 200f, 250f, 315f, 400f, 500f, 630f,
+            800f, 1000f, 1250f, 1600f, 2000f, 2500f, 3150f, 4000f, 5000f, 6300f, 8000f, 10000f,
+            12500f, 16000f, 20000f
+        )
+
+        /**
+         * 频段数量
+         */
+        const val BAND_COUNT = 31
+    }
+}

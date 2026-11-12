@@ -1,0 +1,175 @@
+package me.spica27.spicamusic.ui.widget
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import me.spica27.spicamusic.artwork.MusicArtwork
+import me.spica27.spicamusic.artwork.songArtwork
+import kotlin.math.cos
+import kotlin.math.sin
+
+private const val COMBINATION_COVER_COUNT = 5
+private const val COMBINATION_ROTATION_DEGREES = -30f
+private const val COMBINATION_SCALE = 2.15f
+private const val COMBINATION_FOCUS_OFFSET_X = -0.485f
+private const val COMBINATION_FOCUS_OFFSET_Y = -0.21f
+
+/**
+ * 歌单组合封面。
+ *
+ * 五张或更多封面使用 2+3+空位的倾斜布局；少于五张时回退到第一张封面。
+ * 图片由 LandscapistImage 独立加载，不预先合成 Bitmap。
+ *
+ * 使用方式（歌单列表 item 示例）：
+ * ```kotlin
+ * val coverIds by viewModel.getPlaylistCoverMediaStoreIds(playlist.playlistId!!).collectAsStateWithLifecycle()
+ * PlaylistCoverView(coverMediaStoreIds = coverIds, modifier = Modifier.size(56.dp))
+ * ```
+ * @param coverMediaStoreIds 最多 5 首代表曲（各来自不同专辑），长度决定渲染策略（0/1-4/5）
+ */
+@Composable
+fun PlaylistCoverView(
+    coverMediaStoreIds: List<Long>,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        ShowOnIdleContent(
+            true,
+            enter = materialSharedAxisYIn(true),
+            exit = materialSharedAxisYOut(true),
+            delayMillis = 335,
+        ) {
+            when {
+                coverMediaStoreIds.isEmpty() -> DefaultMusicCover(Modifier.fillMaxSize())
+                coverMediaStoreIds.size < COMBINATION_COVER_COUNT ->
+                    SingleAlbumCover(coverMediaStoreIds.first(), Modifier.fillMaxSize())
+                else ->
+                    FinalPerfectCollage(
+                        covers = coverMediaStoreIds.take(COMBINATION_COVER_COUNT).map(::songArtwork),
+                        modifier = Modifier.fillMaxSize(),
+                    )
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 内部渲染分支
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 歌单少于 5 个专辑时，直接显示最近加入的那首的封面 */
+@Composable
+private fun SingleAlbumCover(
+    mediaStoreId: Long,
+    modifier: Modifier,
+) {
+    PlaylistCoverImage(
+        artwork = songArtwork(mediaStoreId),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun PlaylistCoverImage(
+    artwork: MusicArtwork?,
+    modifier: Modifier,
+) {
+    AudioCover(artwork = artwork, modifier = modifier)
+}
+
+/**
+ * 类 MeiloX 网格UI
+ */
+@Composable
+private fun FinalPerfectCollage(
+    covers: List<MusicArtwork?>,
+    modifier: Modifier = Modifier,
+) {
+    if (covers.size < COMBINATION_COVER_COUNT) return
+
+    BoxWithConstraints(modifier = modifier.clipToBounds()) {
+        val density = LocalDensity.current
+        val viewportWidthPx = with(density) { maxWidth.toPx() }
+        val viewportHeightPx = with(density) { maxHeight.toPx() }
+        val collageWidthPx = viewportWidthPx
+        val topRowHeightPx = collageWidthPx / 2f
+        val bottomRowHeightPx = collageWidthPx / 4f
+        val collageHeightPx = topRowHeightPx + bottomRowHeightPx
+
+        val collageCenterX = collageWidthPx / 2f
+        val collageCenterY = collageHeightPx / 2f
+        val firstImageCenterX = collageWidthPx / 4f
+        val firstImageCenterY = topRowHeightPx / 2f
+
+        val angleRad = Math.toRadians(COMBINATION_ROTATION_DEGREES.toDouble())
+        val vectorX = (firstImageCenterX - collageCenterX) * COMBINATION_SCALE
+        val vectorY = (firstImageCenterY - collageCenterY) * COMBINATION_SCALE
+        val rotatedVectorX = vectorX * cos(angleRad).toFloat() - vectorY * sin(angleRad).toFloat()
+        val rotatedVectorY = vectorX * sin(angleRad).toFloat() + vectorY * cos(angleRad).toFloat()
+        val focalPointX = viewportWidthPx * (0.5f + COMBINATION_FOCUS_OFFSET_X)
+        val focalPointY = viewportHeightPx * (0.5f + COMBINATION_FOCUS_OFFSET_Y)
+        val computedTranslationX = focalPointX - (collageCenterX + rotatedVectorX)
+        val computedTranslationY = focalPointY - (collageCenterY + rotatedVectorY)
+
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationX = computedTranslationX
+                        translationY = computedTranslationY
+                        rotationZ = COMBINATION_ROTATION_DEGREES
+                        scaleX = COMBINATION_SCALE
+                        scaleY = COMBINATION_SCALE
+                    },
+        ) {
+            ImageCollageContent(covers = covers, modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun ImageCollageContent(
+    covers: List<MusicArtwork?>,
+    modifier: Modifier = Modifier,
+) {
+    if (covers.size < COMBINATION_COVER_COUNT) return
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth()) {
+            PlaylistCoverImage(
+                artwork = covers[0],
+                modifier = Modifier.weight(1f).aspectRatio(1f),
+            )
+            PlaylistCoverImage(
+                artwork = covers[1],
+                modifier = Modifier.weight(1f).aspectRatio(1f),
+            )
+        }
+        Row(Modifier.fillMaxWidth()) {
+            PlaylistCoverImage(
+                artwork = covers[2],
+                modifier = Modifier.weight(1f).aspectRatio(1f),
+            )
+            PlaylistCoverImage(
+                artwork = covers[3],
+                modifier = Modifier.weight(1f).aspectRatio(1f),
+            )
+            PlaylistCoverImage(
+                artwork = covers[4],
+                modifier = Modifier.weight(1f).aspectRatio(1f),
+            )
+            Spacer(Modifier.weight(1f).aspectRatio(1f))
+        }
+    }
+}
